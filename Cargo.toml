@@ -3,6 +3,19 @@ name = "rp2g"
 version = "0.1.0"
 authors = ["Tim Visee <3a4fb3964f@sinenomine.email>"]
 license = "GPL-3.0"
+readme = "README.md"
+homepage = "https://timvisee.com/projects/rp2g"
+repository = "https://gitlab.com/timvisee/rp2g"
+description = "Remote Play Together any Steam game."
+keywords = ["steam", "steamplay", "remoteplay"]
+categories = [
+    "command-line-utilities",
+    "games",
+]
+exclude = [
+    "/.github",
+]
+edition = "2018"
 
 [dependencies]
 clap = "2.33"
