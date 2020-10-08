@@ -1,4 +1,4 @@
-_Note: still work in progress, might not work as expected_
+_Note: prototype work in progress, not intended for public use_
 
 # rp2g
 
