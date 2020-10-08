@@ -1,17 +1,33 @@
+#[macro_use]
+extern crate clap;
+
 mod steam;
 mod util;
 
+use clap::{App, Arg};
 use std::path::PathBuf;
 use std::process;
 
 fn main() {
+    // Handle CLI arguments
+    let matches = App::new(crate_name!())
+        .version(crate_version!())
+        .author(crate_authors!())
+        .about(crate_description!())
+        .arg(
+            Arg::with_name("GAME")
+                .help("Path to binary of game to run")
+                .required(true)
+                .index(1),
+        )
+        .get_matches();
+
     util::report_unsupported_platform();
 
     // Define placeholder game and game to play
+    eprintln!("Using placeholder game: Glitchball");
     let placeholder = Game::default();
-    let game = GamePath::from_bin(
-        "/home/timvisee/.steam/steam/steamapps/common/Stephen's Sausage Roll/Sausage.x86_64".into(),
-    );
+    let game = GamePath::from_bin(matches.value_of("GAME").unwrap().into());
 
     // Placeholder game directory must exist
     if !placeholder.path.dir_exists() {
@@ -22,7 +38,7 @@ fn main() {
     }
 
     // Prepare placeholder game
-    println!("Preparing placeholder game...");
+    eprintln!("Preparing placeholder game...");
     placeholder.path.replace_contents_with_linked(&game);
 
     // Run game

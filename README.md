@@ -6,11 +6,11 @@ _Note: prototype work in progress, not intended for public use_
 
 Many Steam games have [_Remote Play Together_][steam-page] disabled.
 That's stupid.
-This tool enables you to use Remote Play Together with any Steam game (or other
-program).
+This tool enables you to use Remote Play Together with _any_ Steam game (or
+other program).
 
 ##### Side effects
-- Steam thinks you're playing another game
+- Steam will think you're playing a different game
 - Online play might not work
 
 ##### Platform support
@@ -18,7 +18,7 @@ program).
 
 ##### How does it work
 - Tool picks a placeholder game that supports Remote Play Together
-- Tool prepares your game or program to start as the placeholder game
+- Tool prepares your game or program to start, faking it is the placeholder game
 - Tool starts game and you can Remote Play Together
 
 ## Usage
