@@ -1,0 +1,7 @@
+[package]
+name = "rp2g"
+version = "0.1.0"
+authors = ["Tim Visee <3a4fb3964f@sinenomine.email>"]
+edition = "2018"
+
+[dependencies]
