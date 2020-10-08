@@ -41,6 +41,9 @@ fn main() {
     eprintln!("Preparing placeholder game...");
     placeholder.path.replace_contents_with_linked(&game);
 
+    // Sync filesystem
+    util::sync_fs();
+
     // Run game
     placeholder.run();
 }

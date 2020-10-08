@@ -36,3 +36,11 @@ pub fn remove_dir_contents(dir: &Path) -> io::Result<()> {
     }
     Ok(())
 }
+
+/// Sync filesystem.
+pub fn sync_fs() {
+    eprintln!("Syncing filesystem...");
+    if let Err(e) = invoke_cmd("sync") {
+        eprintln!("Request to sync filesystem failed, ignoring: {:?}", e);
+    }
+}
