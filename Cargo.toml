@@ -5,7 +5,7 @@ authors = ["Tim Visee <3a4fb3964f@sinenomine.email>"]
 license = "GPL-3.0"
 readme = "README.md"
 homepage = "https://timvisee.com/projects/rp2g"
-repository = "https://gitlab.com/timvisee/rp2g"
+repository = "https://gitlab.com/timvisee/steam-rp2g"
 description = "Remote Play Together any Steam game."
 keywords = ["steam", "steamplay", "remoteplay"]
 categories = [
@@ -19,3 +19,4 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33"
+skim = "0.8"

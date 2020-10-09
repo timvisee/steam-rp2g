@@ -4,9 +4,16 @@ extern crate clap;
 mod steam;
 mod util;
 
-use clap::{App, Arg};
-use std::path::PathBuf;
+use std::io::Cursor;
+use std::path::{Path, PathBuf};
 use std::process;
+
+use skim::{
+    prelude::{SkimItemReader, SkimOptionsBuilder},
+    Skim,
+};
+
+use clap::{App, Arg};
 
 fn main() {
     // Handle CLI arguments
@@ -17,17 +24,22 @@ fn main() {
         .arg(
             Arg::with_name("GAME")
                 .help("Path to binary of game to run")
-                .required(true)
+                .required(false)
                 .index(1),
         )
         .get_matches();
 
     util::report_unsupported_platform();
 
-    // Define placeholder game and game to play
+    // Select game
+    let game = match matches.value_of("GAME") {
+        Some(game) => GamePath::from_bin(game.into()),
+        None => select_game(),
+    };
+
+    // Define placeholder game
     eprintln!("Using placeholder game: Glitchball");
     let placeholder = Game::default();
-    let game = GamePath::from_bin(matches.value_of("GAME").unwrap().into());
 
     // Placeholder game directory must exist
     if !placeholder.path.dir_exists() {
@@ -38,7 +50,7 @@ fn main() {
     }
 
     // Prepare placeholder game
-    eprintln!("Preparing placeholder game...");
+    eprintln!("Preparing game...");
     placeholder.path.replace_contents_with_linked(&game);
 
     // Sync filesystem
@@ -48,7 +60,7 @@ fn main() {
     placeholder.run();
 }
 
-/// Represents a game with a path.
+/// Path to a game.
 struct GamePath {
     /// Game root directory.
     dir: PathBuf,
@@ -58,7 +70,9 @@ struct GamePath {
 }
 
 impl GamePath {
-    /// Construct instance from given game binary.
+    /// From given binary path.
+    ///
+    /// This attempts to guess the game root directory.
     fn from_bin(path: PathBuf) -> Self {
         // Binary must exist, find root dir
         if !path.is_file() {
@@ -133,4 +147,83 @@ impl Default for Game {
             path: GamePath { dir, bin },
         }
     }
+}
+
+/// Select game.
+fn select_game() -> GamePath {
+    // Get Steam directory
+    let steam = steam::find_steam_games_dir();
+
+    let files = util::ls(&steam).expect("failed to list Steam game dirs");
+
+    // TODO: do not unwrap in here
+    let files: Vec<String> = files
+        .into_iter()
+        .map(|d| d.to_str().unwrap().to_owned())
+        .collect();
+
+    let selected = select(&files, "Select game").expect("did not select game");
+
+    let dir: PathBuf = selected.into();
+
+    let bin = select_game_bin(&dir).expect("no game selected");
+
+    GamePath { dir, bin }
+}
+
+/// Select game binary.
+fn select_game_bin(dir: &Path) -> Option<PathBuf> {
+    // TODO: do not unwrap
+    let files = util::ls(&dir).unwrap();
+
+    // TODO: do not unwrap in here
+    let files: Vec<String> = files
+        .into_iter()
+        .map(|d| d.to_str().unwrap().to_owned())
+        .collect();
+
+    match select(&files, "Select game binary") {
+        Some(file) => {
+            let path: PathBuf = file.into();
+            if path.is_file() {
+                return Some(path);
+            }
+            if let Some(bin) = select_game_bin(&path) {
+                return Some(bin);
+            } else {
+                return select_game_bin(dir);
+            }
+        }
+        None => {
+            return None;
+        }
+    }
+}
+
+/// Show an interactive selection view for the given list of `items`.
+/// The selected item is returned.  If no item is selected, `None` is returned instead.
+fn select(items: &[String], prompt: &str) -> Option<String> {
+    let prompt = format!("{}: ", prompt);
+
+    let options = SkimOptionsBuilder::default()
+        .prompt(Some(&prompt))
+        .height(Some("50%"))
+        .multi(false)
+        .build()
+        .unwrap();
+
+    let input = items.join("\n");
+
+    // `SkimItemReader` is a helper to turn any `BufRead` into a stream of `SkimItem`
+    // `SkimItem` was implemented for `AsRef<str>` by default
+    let item_reader = SkimItemReader::default();
+    let items = item_reader.of_bufread(Cursor::new(input));
+
+    // `run_with` would read and show items from the stream
+    let selected = Skim::run_with(&options, Some(items))
+        .map(|out| out.selected_items)
+        .unwrap_or_else(|| Vec::new());
+
+    // Get the first selected, and return
+    selected.iter().next().map(|i| i.output().to_string())
 }

@@ -23,7 +23,7 @@ other program).
 
 ## Usage
 ```bash
-rp2g <game>
+rp2g [GAME]
 ```
 
 ## License
