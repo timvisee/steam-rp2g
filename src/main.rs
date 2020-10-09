@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate clap;
 
+mod fs;
 mod steam;
 mod util;
 
@@ -54,7 +55,7 @@ fn main() {
     placeholder.path.replace_contents_with_linked(&game);
 
     // Sync filesystem
-    util::sync_fs();
+    fs::sync_fs();
 
     // Run game
     placeholder.run();
@@ -100,7 +101,7 @@ impl GamePath {
     /// given game.
     fn replace_contents_with_linked(&self, replacement: &GamePath) {
         // Clear contents
-        util::remove_dir_contents(&self.dir).expect("Failed to clear directory contents");
+        fs::remove_dir_contents(&self.dir).expect("Failed to clear directory contents");
 
         // Link to replacement game
         std::os::unix::fs::symlink(&replacement.bin, &self.bin)
@@ -154,7 +155,7 @@ fn select_game() -> GamePath {
     // Get Steam directory
     let steam = steam::find_steam_games_dir();
 
-    let files = util::ls(&steam).expect("failed to list Steam game dirs");
+    let files = fs::ls(&steam).expect("failed to list Steam game dirs");
 
     // TODO: do not unwrap in here
     let files: Vec<String> = files
@@ -174,7 +175,7 @@ fn select_game() -> GamePath {
 /// Select game binary.
 fn select_game_bin(dir: &Path) -> Option<PathBuf> {
     // TODO: do not unwrap
-    let files = util::ls(&dir).unwrap();
+    let files = fs::ls(&dir).unwrap();
 
     // TODO: do not unwrap in here
     let files: Vec<String> = files
