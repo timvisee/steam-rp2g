@@ -143,7 +143,10 @@ impl Default for Game {
         let mut dir = steam_games[0].clone();
         dir.push("Glitchball/");
         let mut bin = dir.clone();
+        #[cfg(not(macos))]
         bin.push("glitchball_linux.x86_64");
+        #[cfg(macos)]
+        bin.push("Glitchball.app");
 
         Self {
             id: 823470,

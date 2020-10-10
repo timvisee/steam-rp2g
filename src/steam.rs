@@ -163,8 +163,18 @@ pub fn is_bin(path: &Path) -> bool {
     };
 
     // Whitelist of parent directory names and binary suffixes
-    let parents = ["bin", "binary", "run"];
-    let wl_suffix = [".exe", ".x86", ".x86_64", ".bin", ".linux", "64"];
+    let parents = ["bin", "binary", "run", "game"];
+    let wl_suffix = [
+        ".exe",
+        ".x86",
+        ".x86_64",
+        ".bin",
+        #[cfg(linux)]
+        ".linux",
+        "64",
+        #[cfg(macos)]
+        ".app",
+    ];
     let bl_suffix = [".dll", ".lock", ".ds_store"];
 
     // Skip blacklisted

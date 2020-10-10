@@ -19,6 +19,7 @@ This tool automates the whole process in a smart way and makes this a breeze.
 
 ##### Platform support
 - Linux x86_64
+- Mac OS X _(not tested)_
 
 ##### How does it work
 - Tool picks a placeholder game that supports Remote Play Together
