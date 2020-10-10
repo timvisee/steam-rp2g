@@ -2,13 +2,11 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::util;
-
 /// Invoke a Steam URL.
 ///
 /// Give the path to invoke. `install/1` will invoke `steam://install/1`.
 fn invoke_steam_url(path: &str) {
-    util::invoke_cmd(&format!("xdg-open steam://{}", path)).expect("failed to invoke Steam URL");
+    open::that(&format!("steam://{}", path)).expect("failed to invoke Steam URL");
 }
 
 /// Initiate a game installation through Steam.

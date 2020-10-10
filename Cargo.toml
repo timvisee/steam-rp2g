@@ -19,4 +19,5 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33"
+open = "1.4"
 skim = "0.8"
