@@ -1,6 +1,7 @@
 use std::env;
-use std::fs;
 use std::path::{Path, PathBuf};
+
+use crate::fs;
 
 /// Invoke a Steam URL.
 ///
@@ -24,13 +25,27 @@ pub fn find_steam_games_dir() -> Vec<PathBuf> {
     #[allow(deprecated)]
     let home = env::home_dir().expect("unable to determine user home directory");
 
-    // Get steam directory
-    let mut steam = home.clone();
-    steam.push(".steam/steam/steamapps/common/");
-    let dir = fs::canonicalize(steam).expect("could not find Steam games directory");
+    // Build list of default steam game directories
+    let mut dirs: Vec<PathBuf> = vec![];
+    #[cfg(unix)]
+    {
+        let mut dir = home.clone();
+        dir.push(".steam/steam/steamapps/common/");
+        dirs.push(dir);
+    }
+    #[cfg(macos)]
+    {
+        let mut dir = home.clone();
+        dir.push("Library/Application Support/Steam/steamapps/common/");
+        dirs.push(dir);
+    }
+    #[cfg(windows)]
+    {
+        dirs.push(r#"C:\Program Files (x86)\Steam\steamapps\common\"#.into());
+        dirs.push(r#"C:\Program Files\Steam\steamapps\common\"#.into());
+    }
 
     // Get list of game directories, more dirs can be added here
-    let dirs: Vec<PathBuf> = vec![dir];
     let mut dirs: Vec<PathBuf> = dirs.into_iter().filter(|d| d.is_dir()).collect();
 
     // Extend list with user defined directories configured in Steam
@@ -95,7 +110,7 @@ pub fn find_steam_game_dirs() -> Vec<PathBuf> {
     find_steam_games_dir()
         .into_iter()
         .flat_map(|d| {
-            crate::fs::ls(&d)
+            fs::ls(&d)
                 .expect("failed to list Steam game dirs")
                 .into_iter()
                 .filter(|f| f.is_dir())
@@ -107,7 +122,7 @@ pub fn find_steam_game_dirs() -> Vec<PathBuf> {
 /// Find game binaries.
 pub fn find_game_bins(dir: &Path) -> Vec<PathBuf> {
     // TODO: only executables, filter by [.exe, .x86_64] and such
-    crate::fs::ls(dir)
+    fs::ls(dir)
         .expect("failed to list Steam game dirs")
         .into_iter()
         .filter(|f| is_bin(&f))
