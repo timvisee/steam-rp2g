@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::util;
 
@@ -30,4 +30,23 @@ pub fn find_steam_games_dir() -> PathBuf {
     steam.push(".steam/steam/steamapps/common/");
 
     fs::canonicalize(steam).expect("could not find Steam games directory")
+}
+
+/// Find directories of steam games.
+pub fn find_steam_game_dirs() -> Vec<PathBuf> {
+    crate::fs::ls(&find_steam_games_dir())
+        .expect("failed to list Steam game dirs")
+        .into_iter()
+        .filter(|f| f.is_dir())
+        .collect()
+}
+
+/// Find game binaries.
+pub fn find_game_bins(dir: &Path) -> Vec<PathBuf> {
+    // TODO: only executables, filter by [.exe, .x86_64] and such
+    crate::fs::ls(dir)
+        .expect("failed to list Steam game dirs")
+        .into_iter()
+        .filter(|f| f.is_file())
+        .collect()
 }

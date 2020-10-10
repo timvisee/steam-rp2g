@@ -5,13 +5,14 @@ mod fs;
 mod steam;
 mod util;
 
-use std::io::Cursor;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::process;
+use std::sync::Arc;
 
 use skim::{
-    prelude::{SkimItemReader, SkimOptionsBuilder},
-    Skim,
+    prelude::{SkimItemReceiver, SkimItemSender, SkimOptionsBuilder},
+    AnsiString, Skim, SkimItem,
 };
 
 use clap::{App, Arg};
@@ -152,60 +153,32 @@ impl Default for Game {
 
 /// Select game.
 fn select_game() -> GamePath {
-    // Get Steam directory
-    let steam = steam::find_steam_games_dir();
+    // Find game directories
+    let files = steam::find_steam_game_dirs();
+    let game_items = skim_game_file_items(&files);
 
-    let files = fs::ls(&steam).expect("failed to list Steam game dirs");
-
-    // TODO: do not unwrap in here
-    let files: Vec<String> = files
-        .into_iter()
-        .map(|d| d.to_str().unwrap().to_owned())
-        .collect();
-
-    let selected = select(&files, "Select game").expect("did not select game");
-
+    let selected = select(game_items, "Select game").expect("did not select game");
     let dir: PathBuf = selected.into();
+    let game_name = dir.file_name().unwrap().to_str().unwrap_or("?");
 
-    let bin = select_game_bin(&dir).expect("no game selected");
+    let bins = steam::find_game_bins(&dir);
+    if bins.is_empty() {
+        // TODO: do not panic here
+        panic!("No game files found");
+    }
+    let game_items = skim_game_file_items(&bins);
+
+    let prompt = format!("Select binary ({})", game_name);
+    let selected = select(game_items, &prompt).expect("did not select game binary");
+    let bin: PathBuf = selected.into();
 
     GamePath { dir, bin }
 }
 
-/// Select game binary.
-fn select_game_bin(dir: &Path) -> Option<PathBuf> {
-    // TODO: do not unwrap
-    let files = fs::ls(&dir).unwrap();
-
-    // TODO: do not unwrap in here
-    let files: Vec<String> = files
-        .into_iter()
-        .map(|d| d.to_str().unwrap().to_owned())
-        .collect();
-
-    match select(&files, "Select game binary") {
-        Some(file) => {
-            let path: PathBuf = file.into();
-            if path.is_file() {
-                return Some(path);
-            }
-            if let Some(bin) = select_game_bin(&path) {
-                return Some(bin);
-            } else {
-                return select_game_bin(dir);
-            }
-        }
-        None => {
-            return None;
-        }
-    }
-}
-
 /// Show an interactive selection view for the given list of `items`.
 /// The selected item is returned.  If no item is selected, `None` is returned instead.
-fn select(items: &[String], prompt: &str) -> Option<String> {
+fn select(items: SkimItemReceiver, prompt: &str) -> Option<String> {
     let prompt = format!("{}: ", prompt);
-
     let options = SkimOptionsBuilder::default()
         .prompt(Some(&prompt))
         .height(Some("50%"))
@@ -213,18 +186,60 @@ fn select(items: &[String], prompt: &str) -> Option<String> {
         .build()
         .unwrap();
 
-    let input = items.join("\n");
-
-    // `SkimItemReader` is a helper to turn any `BufRead` into a stream of `SkimItem`
-    // `SkimItem` was implemented for `AsRef<str>` by default
-    let item_reader = SkimItemReader::default();
-    let items = item_reader.of_bufread(Cursor::new(input));
-
-    // `run_with` would read and show items from the stream
     let selected = Skim::run_with(&options, Some(items))
         .map(|out| out.selected_items)
         .unwrap_or_else(|| Vec::new());
 
     // Get the first selected, and return
     selected.iter().next().map(|i| i.output().to_string())
+}
+
+pub struct SkimGameFile {
+    /// Game directory.
+    dir: String,
+
+    /// Game name.
+    name: String,
+}
+
+impl SkimGameFile {
+    /// Construct from given game directory.
+    fn from(dir: &Path) -> Self {
+        Self {
+            dir: dir.to_str().unwrap().into(),
+            name: dir.file_name().unwrap().to_str().unwrap().into(),
+        }
+    }
+}
+
+impl SkimItem for SkimGameFile {
+    fn display(&self) -> Cow<AnsiString> {
+        let s: AnsiString = self.name.clone().into();
+        Cow::Owned(s)
+    }
+
+    fn text(&self) -> Cow<str> {
+        (&self.name).into()
+    }
+
+    fn output(&self) -> Cow<str> {
+        // Return full path
+        (&self.dir).into()
+    }
+}
+
+/// Generate skim `GameItem` from given paths.
+fn skim_game_file_items(paths: &[PathBuf]) -> SkimItemReceiver {
+    // Transform into skim game item and sort
+    let mut paths: Vec<_> = paths.iter().map(|g| SkimGameFile::from(g)).collect();
+    paths.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+
+    let (tx_item, rx_item): (SkimItemSender, SkimItemReceiver) =
+        skim::prelude::bounded(paths.len());
+
+    paths.into_iter().for_each(|g| {
+        let _ = tx_item.send(Arc::new(g));
+    });
+
+    rx_item
 }
