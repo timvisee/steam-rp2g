@@ -30,8 +30,11 @@ pub fn ls(dir: &Path) -> io::Result<Vec<PathBuf>> {
 
 /// Sync filesystem.
 pub fn sync_fs() {
-    eprintln!("Syncing filesystem...");
-    if let Err(e) = util::invoke_cmd("sync") {
-        eprintln!("Request to sync filesystem failed, ignoring: {:?}", e);
+    #[cfg(target_os = "linux")]
+    {
+        eprintln!("Syncing filesystem...");
+        if let Err(e) = util::invoke_cmd("sync") {
+            eprintln!("Request to sync filesystem failed, ignoring: {:?}", e);
+        }
     }
 }

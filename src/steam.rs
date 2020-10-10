@@ -125,8 +125,8 @@ fn find_steam_dirs_extras(mut path: PathBuf) -> Option<Vec<PathBuf>> {
 }
 
 /// Find directories of steam games.
-pub fn find_steam_game_dirs() -> Vec<PathBuf> {
-    find_steam_dirs()
+pub fn find_steam_game_dirs(steam_dirs: &[PathBuf]) -> Vec<PathBuf> {
+    steam_dirs
         .into_iter()
         .flat_map(|d| {
             fs::ls(&d)
@@ -209,10 +209,10 @@ pub fn is_bin(path: &Path) -> bool {
         ".x86",
         ".x86_64",
         ".bin",
-        #[cfg(linux)]
+        #[cfg(target_os = "linux")]
         ".linux",
         "64",
-        #[cfg(macos)]
+        #[cfg(target_os = "macos")]
         ".app",
     ];
     let bl_suffix = [".dll", ".lock", ".ds_store"];

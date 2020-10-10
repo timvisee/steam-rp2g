@@ -47,7 +47,7 @@ fn main() {
     // Select game
     let game = match matches.value_of("GAME") {
         Some(game) => GamePath::from_bin(game.into()),
-        None => select_game(),
+        None => select_game(&steam_dirs),
     };
 
     // Prepare placeholder game
@@ -163,12 +163,6 @@ struct Game {
 }
 
 impl Game {
-    /// Tell Steam to install game.
-    fn install(&self) {
-        println!("Prompting to install game through Steam...");
-        steam::invoke_steam_install(self.id);
-    }
-
     /// Tell Steam to run game.
     fn run(&self) {
         println!("Starting game through Steam...");
@@ -178,9 +172,9 @@ impl Game {
     /// Construct placeholder game at given path.
     fn placeholder(dir: PathBuf) -> Self {
         let mut bin = dir.clone();
-        #[cfg(not(macos))]
+        #[cfg(not(target_os = "macos"))]
         bin.push("glitchball_linux.x86_64");
-        #[cfg(macos)]
+        #[cfg(target_os = "macos")]
         bin.push("Glitchball.app");
 
         Self {
@@ -191,9 +185,9 @@ impl Game {
 }
 
 /// Select game.
-fn select_game() -> GamePath {
+fn select_game(steam_dirs: &[PathBuf]) -> GamePath {
     // Find game directories
-    let game_dirs = steam::find_steam_game_dirs();
+    let game_dirs = steam::find_steam_game_dirs(steam_dirs);
     let game_items = skim_game_file_items(&game_dirs);
 
     let selected = select(game_items, "Select game").expect("did not select game");
@@ -209,7 +203,7 @@ fn select_game() -> GamePath {
     let prompt = format!("Select binary ({})", game_name);
     let selected = match select(game_items, &prompt) {
         Some(g) => g,
-        None => return select_game(),
+        None => return select_game(steam_dirs),
     };
     let bin: PathBuf = selected.into();
 
