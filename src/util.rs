@@ -12,7 +12,7 @@ pub fn invoke_cmd(cmd: &str) -> io::Result<Output> {
 
 /// Check we are on a supported platform.
 pub fn is_supported_platform() -> bool {
-    std::env::consts::OS == "linux"
+    std::env::consts::OS == "linux" || std::env::consts::OS == "macos"
 }
 
 /// Report if we are on an unsupported platform.

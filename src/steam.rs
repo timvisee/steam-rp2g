@@ -10,18 +10,37 @@ fn invoke_steam_url(path: &str) {
     open::that(&format!("steam://{}", path)).expect("failed to invoke Steam URL");
 }
 
+fn invoke_steam_url_game_cmd(cmd: &str, game_id: usize) {
+    invoke_steam_url(&format!("{}/{}", cmd, game_id));
+}
+
 /// Initiate a game installation through Steam.
 pub fn invoke_steam_install(game_id: usize) {
-    invoke_steam_url(&format!("install/{}", game_id));
+    invoke_steam_url_game_cmd("install", game_id)
+}
+
+/// Initiate a game uninstallation through Steam.
+pub fn invoke_steam_uninstall(game_id: usize) {
+    invoke_steam_url_game_cmd("uninstall", game_id)
+}
+
+/// Initiate a game installation through Steam.
+pub fn invoke_steam_validate(game_id: usize) {
+    invoke_steam_url_game_cmd("validate", game_id)
 }
 
 /// Initiate running a game through Steam.
 pub fn invoke_steam_run(game_id: usize) {
-    invoke_steam_url(&format!("run/{}", game_id));
+    invoke_steam_url_game_cmd("run", game_id)
 }
 
-/// Find the Steam games directory.
-pub fn find_steam_games_dir() -> Vec<PathBuf> {
+/// Find Steam game directories.
+///
+/// Location depends on platform, on Linux this may resolve to:
+/// - `~/.steam/steam/steamapps/common/`
+///
+/// This also resolves extra user defined directories as configured in Steam.
+pub fn find_steam_dirs() -> Vec<PathBuf> {
     #[allow(deprecated)]
     let home = env::home_dir().expect("unable to determine user home directory");
 
@@ -59,7 +78,7 @@ pub fn find_steam_games_dir() -> Vec<PathBuf> {
             }
             dirs
         })
-        .filter_map(|d| find_steam_games_dir_extras(d))
+        .filter_map(|d| find_steam_dirs_extras(d))
         .flatten()
         .collect();
     dirs.extend_from_slice(&extra_dirs);
@@ -72,7 +91,7 @@ pub fn find_steam_games_dir() -> Vec<PathBuf> {
 }
 
 /// Find additional Steam game directories, configured by the user.
-fn find_steam_games_dir_extras(mut path: PathBuf) -> Option<Vec<PathBuf>> {
+fn find_steam_dirs_extras(mut path: PathBuf) -> Option<Vec<PathBuf>> {
     // Append filename to path
     path.push("libraryfolders.vdf");
 
@@ -107,7 +126,7 @@ fn find_steam_games_dir_extras(mut path: PathBuf) -> Option<Vec<PathBuf>> {
 
 /// Find directories of steam games.
 pub fn find_steam_game_dirs() -> Vec<PathBuf> {
-    find_steam_games_dir()
+    find_steam_dirs()
         .into_iter()
         .flat_map(|d| {
             fs::ls(&d)
@@ -125,6 +144,27 @@ pub fn find_game_bins(dir: &Path) -> Vec<PathBuf> {
         .expect("failed to list Steam game dirs")
         .into_iter()
         .filter(|f| is_bin(&f))
+        .collect()
+}
+
+/// Find the directory of a game.
+///
+/// Only bases search on directory name, not on directory contents. Search is case insensitive.
+pub fn find_game_dir(steam_dirs: &[PathBuf], name: &str) -> Vec<PathBuf> {
+    steam_dirs
+        .into_iter()
+        .flat_map(|d| {
+            fs::ls(&d)
+                .expect("failed to list Steam game dirs")
+                .into_iter()
+                .filter(|d| d.is_dir())
+                .filter(|d| {
+                    d.file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|n| n.to_lowercase() == name.to_lowercase())
+                        .unwrap_or(false)
+                })
+        })
         .collect()
 }
 
@@ -163,7 +203,7 @@ pub fn is_bin(path: &Path) -> bool {
     };
 
     // Whitelist of parent directory names and binary suffixes
-    let parents = ["bin", "binary", "run", "game"];
+    let parents = ["bin", "binary", "run", "game", "x64"];
     let wl_suffix = [
         ".exe",
         ".x86",

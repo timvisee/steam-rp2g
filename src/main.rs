@@ -17,6 +17,10 @@ use skim::{
 
 use clap::{App, Arg};
 
+const PLACEHOLDER_GAME_NAME: &str = "Glitchball";
+const PLACEHOLDER_GAME_ID: usize = 823470;
+const PLACEHOLDER_GAME_DIR: &str = "Glitchball";
+
 fn main() {
     // Handle CLI arguments
     let matches = App::new(crate_name!())
@@ -33,23 +37,18 @@ fn main() {
 
     util::report_unsupported_platform();
 
+    // Find steam game dirs
+    // TODO: use this throughout application, do not call multiple times
+    let steam_dirs = steam::find_steam_dirs();
+
+    // Find placeholder game
+    let placeholder = find_placeholder_game(&steam_dirs);
+
     // Select game
     let game = match matches.value_of("GAME") {
         Some(game) => GamePath::from_bin(game.into()),
         None => select_game(),
     };
-
-    // Define placeholder game
-    eprintln!("Using placeholder game: Glitchball");
-    let placeholder = Game::default();
-
-    // Placeholder game directory must exist
-    if !placeholder.path.dir_exists() {
-        eprintln!("Placeholder game 'Glitchball' not installed");
-        eprintln!("Install game through Steam first, or repair game files");
-        placeholder.install();
-        process::exit(1);
-    }
 
     // Prepare placeholder game
     eprintln!("Preparing game...");
@@ -58,6 +57,57 @@ fn main() {
     // Sync filesystem, run game
     fs::sync_fs();
     placeholder.run();
+}
+
+/// Find the placeholder game.
+///
+/// If there's an installation issue the user is prompted and the program quits.
+fn find_placeholder_game(steam_dirs: &[PathBuf]) -> Game {
+    eprintln!("Using placeholder game: {}", PLACEHOLDER_GAME_NAME);
+    match steam::find_game_dir(&steam_dirs, PLACEHOLDER_GAME_DIR) {
+        dirs if dirs.len() == 1 => Game::placeholder(dirs[0].clone()),
+        dirs if dirs.is_empty() => {
+            eprintln!("Placeholder game '{}' not installed", PLACEHOLDER_GAME_NAME);
+            eprintln!(
+                "Install game through Steam first, or repair game files, then run this again"
+            );
+            steam::invoke_steam_install(PLACEHOLDER_GAME_ID);
+            steam::invoke_steam_validate(PLACEHOLDER_GAME_ID);
+            process::exit(1);
+        }
+        dirs => {
+            eprintln!(
+                "Placeholder game '{}' has multiple install locations",
+                PLACEHOLDER_GAME_NAME
+            );
+
+            // Remove installation directories
+            eprintln!("Removing installation directories...");
+            dirs.into_iter().for_each(|d| {
+                // Remove directory contents
+                if let Err(err) = fs::remove_dir_contents(&d) {
+                    eprintln!(
+                        "Failed to remove game installation directory contents, ignoring: {:?}",
+                        err
+                    );
+                }
+
+                // Remove directory itself
+                if let Err(err) = std::fs::remove_dir(&d) {
+                    eprintln!(
+                        "Failed to remove game installation directory, ignoring: {:?}",
+                        err
+                    );
+                }
+            });
+
+            // Uninstall through Steam, give user instruction
+            eprintln!("Uninstall game through Steam, then run this again to reinstall");
+            steam::invoke_steam_uninstall(PLACEHOLDER_GAME_ID);
+
+            process::exit(1);
+        }
+    }
 }
 
 /// Path to a game.
@@ -87,11 +137,6 @@ impl GamePath {
             .into();
 
         GamePath { dir, bin: path }
-    }
-
-    /// Check whether game directory exists.
-    fn dir_exists(&self) -> bool {
-        self.dir.is_dir()
     }
 
     /// Replace game with given other game.
@@ -129,19 +174,9 @@ impl Game {
         println!("Starting game through Steam...");
         steam::invoke_steam_run(self.id);
     }
-}
 
-impl Default for Game {
-    fn default() -> Self {
-        // Find Steam games dir
-        let steam_games = steam::find_steam_games_dir();
-
-        // TODO: dynamically find Glitchball game in list of steam dirs, instead of just taking
-        // first directory
-
-        // Find placeholder game directory and binary
-        let mut dir = steam_games[0].clone();
-        dir.push("Glitchball/");
+    /// Construct placeholder game at given path.
+    fn placeholder(dir: PathBuf) -> Self {
         let mut bin = dir.clone();
         #[cfg(not(macos))]
         bin.push("glitchball_linux.x86_64");
@@ -149,7 +184,7 @@ impl Default for Game {
         bin.push("Glitchball.app");
 
         Self {
-            id: 823470,
+            id: PLACEHOLDER_GAME_ID,
             path: GamePath { dir, bin },
         }
     }
@@ -158,8 +193,8 @@ impl Default for Game {
 /// Select game.
 fn select_game() -> GamePath {
     // Find game directories
-    let files = steam::find_steam_game_dirs();
-    let game_items = skim_game_file_items(&files);
+    let game_dirs = steam::find_steam_game_dirs();
+    let game_items = skim_game_file_items(&game_dirs);
 
     let selected = select(game_items, "Select game").expect("did not select game");
     let dir: PathBuf = selected.into();
