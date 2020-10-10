@@ -231,16 +231,16 @@ pub fn is_bin(path: &Path) -> bool {
         return false;
     }
 
-    // // Executables are binaries on Unix
-    // #[cfg(unix)]
-    // {
-    //     if let Ok(meta) = path.metadata() {
-    //         use std::os::unix::fs::MetadataExt;
-    //         if (meta.mode() & 0o111) > 0 {
-    //             return true;
-    //         }
-    //     }
-    // }
+    // Must be executable on Unix
+    #[cfg(unix)]
+    {
+        if let Ok(meta) = path.metadata() {
+            use std::os::unix::fs::MetadataExt;
+            if (meta.mode() & 0o111) == 0 {
+                return false;
+            }
+        }
+    }
 
     // Check whitelist
     parent_name == name || wl_parent.iter().any(|n| n == &parent_name) || {
