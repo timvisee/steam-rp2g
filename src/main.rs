@@ -169,7 +169,10 @@ fn select_game() -> GamePath {
     let game_items = skim_game_file_items(&bins);
 
     let prompt = format!("Select binary ({})", game_name);
-    let selected = select(game_items, &prompt).expect("did not select game binary");
+    let selected = match select(game_items, &prompt) {
+        Some(g) => g,
+        None => return select_game(),
+    };
     let bin: PathBuf = selected.into();
 
     GamePath { dir, bin }
