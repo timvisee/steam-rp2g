@@ -9,9 +9,13 @@ That's stupid.
 This tool enables you to use Remote Play Together with _any_ Steam game (or
 other program).
 
+This can be achieved manually by moving game files around. That's very
+cumbersome.
+This tool automates the whole process in a smart way and makes this a breeze.
+
 ##### Side effects
 - Steam will think you're playing a different game
-- Online play might not work
+- Online play and other Steam features might not work
 
 ##### Platform support
 - Linux x86_64
