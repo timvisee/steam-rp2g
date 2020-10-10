@@ -36,6 +36,7 @@ pub fn find_steam_game_dirs() -> Vec<PathBuf> {
         .expect("failed to list Steam game dirs")
         .into_iter()
         .filter(|f| f.is_dir())
+        .filter(|f| game_has_bins(f))
         .collect()
 }
 
@@ -47,6 +48,11 @@ pub fn find_game_bins(dir: &Path) -> Vec<PathBuf> {
         .into_iter()
         .filter(|f| is_bin(&f))
         .collect()
+}
+
+/// Check whether a game has binaries.
+pub fn game_has_bins(path: &Path) -> bool {
+    !find_game_bins(path).is_empty()
 }
 
 /// Check whether given file is considered a binary.
@@ -78,7 +84,17 @@ pub fn is_bin(path: &Path) -> bool {
         None => return false,
     };
 
-    // Executable check on Unix
+    // Whitelist of parent directory names and binary suffixes
+    let parents = ["bin", "binary", "run"];
+    let wl_suffix = [".exe", ".x86", ".x86_64", ".bin", ".linux", "64"];
+    let bl_suffix = [".dll", ".lock", ".DS_Store"];
+
+    // Skip blacklisted
+    if bl_suffix.iter().any(|e| name.ends_with(e)) {
+        return false;
+    }
+
+    // Executables are binaries on Unix
     #[cfg(unix)]
     if let Ok(meta) = path.metadata() {
         use std::os::unix::fs::MetadataExt;
@@ -87,11 +103,8 @@ pub fn is_bin(path: &Path) -> bool {
         }
     }
 
-    // Whitelist of parent directory names and binary suffixes
-    let parents = ["bin", "binary", "run"];
-    let suffixes = [".exe", ".x86", ".x86_64", ".bin", ".linux", "64"];
-
+    // Check whitelist
     parent_name == name || parents.iter().any(|n| &parent_name == n) || {
-        suffixes.iter().any(|e| name.ends_with(e))
+        wl_suffix.iter().any(|e| name.ends_with(e))
     }
 }
