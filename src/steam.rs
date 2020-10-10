@@ -80,7 +80,14 @@ pub fn is_bin(path: &Path) -> bool {
         None => return false,
     };
 
-    // TODO: possibly check if file is executable?
+    // Executable check on Unix
+    #[cfg(unix)]
+    if let Ok(meta) = path.metadata() {
+        use std::os::unix::fs::MetadataExt;
+        if (meta.mode() & 0o111) > 0 {
+            return true;
+        }
+    }
 
     // Whitelist of parent directory names and binary suffixes
     let parents = ["bin", "binary", "run"];
