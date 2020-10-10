@@ -55,10 +55,8 @@ fn main() {
     eprintln!("Preparing game...");
     placeholder.path.replace_contents_with_linked(&game);
 
-    // Sync filesystem
+    // Sync filesystem, run game
     fs::sync_fs();
-
-    // Run game
     placeholder.run();
 }
 
@@ -166,7 +164,6 @@ fn select_game() -> GamePath {
 
     let bins = steam::find_game_bins(&dir);
     if bins.is_empty() {
-        // TODO: do not panic here
         panic!("No game files found");
     }
     let game_items = skim_game_file_items(&bins);

@@ -121,7 +121,6 @@ pub fn find_steam_game_dirs() -> Vec<PathBuf> {
 
 /// Find game binaries.
 pub fn find_game_bins(dir: &Path) -> Vec<PathBuf> {
-    // TODO: only executables, filter by [.exe, .x86_64] and such
     fs::ls(dir)
         .expect("failed to list Steam game dirs")
         .into_iter()
