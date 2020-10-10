@@ -20,23 +20,87 @@ pub fn invoke_steam_run(game_id: usize) {
 }
 
 /// Find the Steam games directory.
-pub fn find_steam_games_dir() -> PathBuf {
+pub fn find_steam_games_dir() -> Vec<PathBuf> {
     #[allow(deprecated)]
     let home = env::home_dir().expect("unable to determine user home directory");
 
+    // Get steam directory
     let mut steam = home.clone();
     steam.push(".steam/steam/steamapps/common/");
+    let dir = fs::canonicalize(steam).expect("could not find Steam games directory");
 
-    fs::canonicalize(steam).expect("could not find Steam games directory")
+    // Get list of game directories, more dirs can be added here
+    let dirs: Vec<PathBuf> = vec![dir];
+    let mut dirs: Vec<PathBuf> = dirs.into_iter().filter(|d| d.is_dir()).collect();
+
+    // Extend list with user defined directories configured in Steam
+    let extra_dirs: Vec<PathBuf> = dirs
+        .iter()
+        .flat_map(|d| {
+            // Scan directory and parent directory (./common/..)
+            let mut dirs = vec![d.to_owned()];
+            if let Some(parent) = d.parent() {
+                dirs.push(parent.into());
+            }
+            dirs
+        })
+        .filter_map(|d| find_steam_games_dir_extras(d))
+        .flatten()
+        .collect();
+    dirs.extend_from_slice(&extra_dirs);
+
+    // Remove duplicates
+    dirs.sort_unstable();
+    dirs.dedup();
+
+    dirs
+}
+
+/// Find additional Steam game directories, configured by the user.
+fn find_steam_games_dir_extras(mut path: PathBuf) -> Option<Vec<PathBuf>> {
+    // Append filename to path
+    path.push("libraryfolders.vdf");
+
+    // Load user library folder configuration, find library folders table
+    let entry = steamy_vdf::load(path).ok()?;
+    let table = entry.get("LibraryFolders")?.as_table()?;
+
+    // List keys that are a number
+    let keys: Vec<&String> = table
+        .keys()
+        .into_iter()
+        .filter(|n| n.chars().filter(|c| !('0'..='9').contains(c)).count() == 0)
+        .collect();
+
+    // Grab library paths, directories must exist
+    Some(
+        keys.into_iter()
+            .filter_map(|k| {
+                table
+                    .get(k)
+                    .and_then(|v| v.as_str())
+                    .map(|v| v.to_string().into())
+            })
+            .map(|mut d: PathBuf| {
+                d.push("steamapps/common/");
+                d
+            })
+            .filter(|d: &PathBuf| d.is_dir())
+            .collect(),
+    )
 }
 
 /// Find directories of steam games.
 pub fn find_steam_game_dirs() -> Vec<PathBuf> {
-    crate::fs::ls(&find_steam_games_dir())
-        .expect("failed to list Steam game dirs")
+    find_steam_games_dir()
         .into_iter()
-        .filter(|f| f.is_dir())
-        .filter(|f| game_has_bins(f))
+        .flat_map(|d| {
+            crate::fs::ls(&d)
+                .expect("failed to list Steam game dirs")
+                .into_iter()
+                .filter(|f| f.is_dir())
+                .filter(|f| game_has_bins(f))
+        })
         .collect()
 }
 
@@ -87,7 +151,7 @@ pub fn is_bin(path: &Path) -> bool {
     // Whitelist of parent directory names and binary suffixes
     let parents = ["bin", "binary", "run"];
     let wl_suffix = [".exe", ".x86", ".x86_64", ".bin", ".linux", "64"];
-    let bl_suffix = [".dll", ".lock", ".DS_Store"];
+    let bl_suffix = [".dll", ".lock", ".ds_store"];
 
     // Skip blacklisted
     if bl_suffix.iter().any(|e| name.ends_with(e)) {

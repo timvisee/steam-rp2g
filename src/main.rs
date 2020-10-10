@@ -138,8 +138,11 @@ impl Default for Game {
         // Find Steam games dir
         let steam_games = steam::find_steam_games_dir();
 
+        // TODO: dynamically find Glitchball game in list of steam dirs, instead of just taking
+        // first directory
+
         // Find placeholder game directory and binary
-        let mut dir = steam_games.clone();
+        let mut dir = steam_games[0].clone();
         dir.push("Glitchball/");
         let mut bin = dir.clone();
         bin.push("glitchball_linux.x86_64");
