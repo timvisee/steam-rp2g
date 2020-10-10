@@ -194,7 +194,7 @@ fn select_game(steam_dirs: &[PathBuf]) -> GamePath {
     let dir: PathBuf = selected.into();
     let game_name = dir.file_name().unwrap().to_str().unwrap_or("?");
 
-    let bins = steam::find_game_bins(&dir);
+    let bins = steam::find_game_bins(&dir, 999999999);
     if bins.is_empty() {
         panic!("No game files found");
     }

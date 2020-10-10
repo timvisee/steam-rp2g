@@ -138,15 +138,6 @@ pub fn find_steam_game_dirs(steam_dirs: &[PathBuf]) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Find game binaries.
-pub fn find_game_bins(dir: &Path) -> Vec<PathBuf> {
-    fs::ls(dir)
-        .expect("failed to list Steam game dirs")
-        .into_iter()
-        .filter(|f| is_bin(&f))
-        .collect()
-}
-
 /// Find the directory of a game.
 ///
 /// Only bases search on directory name, not on directory contents. Search is case insensitive.
@@ -168,9 +159,27 @@ pub fn find_game_dir(steam_dirs: &[PathBuf], name: &str) -> Vec<PathBuf> {
         .collect()
 }
 
+/// Find game binaries.
+// TODO: return iterator instead, do not set limit, first local binaries, then walk directories
+pub fn find_game_bins(dir: &Path, limit: usize) -> Vec<PathBuf> {
+    fs::ls(dir)
+        .unwrap_or_else(|_| vec![])
+        .into_iter()
+        .flat_map(|n| {
+            if n.is_dir() {
+                find_game_bins(&n, limit)
+            } else {
+                vec![n]
+            }
+        })
+        .filter(|f| is_bin(&f))
+        .take(limit)
+        .collect()
+}
+
 /// Check whether a game has binaries.
 pub fn game_has_bins(path: &Path) -> bool {
-    !find_game_bins(path).is_empty()
+    !find_game_bins(path, 1).is_empty()
 }
 
 /// Check whether given file is considered a binary.
@@ -203,7 +212,7 @@ pub fn is_bin(path: &Path) -> bool {
     };
 
     // Whitelist of parent directory names and binary suffixes
-    let parents = ["bin", "binary", "run", "game", "x64"];
+    let wl_parent = ["bin", "binary", "run", "game", "x64"];
     let wl_suffix = [
         ".exe",
         ".x86",
@@ -222,19 +231,19 @@ pub fn is_bin(path: &Path) -> bool {
         return false;
     }
 
-    // Executables are binaries on Unix
-    #[cfg(unix)]
-    {
-        if let Ok(meta) = path.metadata() {
-            use std::os::unix::fs::MetadataExt;
-            if (meta.mode() & 0o111) > 0 {
-                return true;
-            }
-        }
-    }
+    // // Executables are binaries on Unix
+    // #[cfg(unix)]
+    // {
+    //     if let Ok(meta) = path.metadata() {
+    //         use std::os::unix::fs::MetadataExt;
+    //         if (meta.mode() & 0o111) > 0 {
+    //             return true;
+    //         }
+    //     }
+    // }
 
     // Check whitelist
-    parent_name == name || parents.iter().any(|n| &parent_name == n) || {
+    parent_name == name || wl_parent.iter().any(|n| n == &parent_name) || {
         wl_suffix.iter().any(|e| name.ends_with(e))
     }
 }
