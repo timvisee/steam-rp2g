@@ -183,6 +183,7 @@ pub fn game_has_bins(path: &Path) -> bool {
 }
 
 /// Check whether given file is considered a binary.
+// TODO: filter uninstallers, filter .so.{1..}
 pub fn is_bin(path: &Path) -> bool {
     // Must be a file
     if !path.is_file() {
@@ -224,7 +225,16 @@ pub fn is_bin(path: &Path) -> bool {
         #[cfg(target_os = "macos")]
         ".app",
     ];
-    let bl_suffix = [".dll", ".lock", ".ds_store"];
+    let bl_suffix = [
+        ".dll",
+        ".lock",
+        ".ds_store",
+        #[cfg(target_os = "linux")]
+        ".so",
+        ".cfg",
+        ".txt",
+        ".xml",
+    ];
 
     // Skip blacklisted
     if bl_suffix.iter().any(|e| name.ends_with(e)) {
