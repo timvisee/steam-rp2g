@@ -128,7 +128,7 @@ impl Game {
 
     /// Tell Steam to run game.
     fn run(&self) {
-        println!("Running game...");
+        println!("Starting game through Steam...");
         steam::invoke_steam_run(self.id);
     }
 }

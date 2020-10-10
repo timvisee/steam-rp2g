@@ -96,10 +96,12 @@ pub fn is_bin(path: &Path) -> bool {
 
     // Executables are binaries on Unix
     #[cfg(unix)]
-    if let Ok(meta) = path.metadata() {
-        use std::os::unix::fs::MetadataExt;
-        if (meta.mode() & 0o111) > 0 {
-            return true;
+    {
+        if let Ok(meta) = path.metadata() {
+            use std::os::unix::fs::MetadataExt;
+            if (meta.mode() & 0o111) > 0 {
+                return true;
+            }
         }
     }
 
